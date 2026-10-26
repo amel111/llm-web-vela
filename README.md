@@ -20,9 +20,9 @@ Website: [maylore.com/temper-2-ion](https://maylore.com/temper-2-ion)
 
 ## Results
 
-pass@1 / pass@10, %. pass@1 is the share of tasks solved on the first attempt, pass@10 the share solved in at least one of 10 attempts.
+HumanEval-RS and MBPP-RS show pass@1 / pass@10, %. pass@1 is the share of tasks solved on the first attempt, pass@10 the share solved in at least one of 10 attempts.
 
-| model | HumanEval-RS | MBPP-RS | Temper Bench v2 |
+| model | HumanEval-RS | MBPP-RS | Temper Bench v2 (greedy pass@1) |
 |---|---|---|---|
 | **Temper-2-Ion** | **48.1** / 57.6 | **45.5** / 53.8 | **12.7** |
 | Temper-1-0.5B | 36.3 / 46.3 | 39.3 / 46.9 | 7.3 |
