@@ -33,7 +33,7 @@ HumanEval-RS and MBPP-RS show pass@1 / pass@10, %. pass@1 is the share of tasks 
 | Temper-1-1.5B | 54.1 / 68.8 | 48.6 / 59.2 | 16.7 |
 | Qwen2.5-Coder-3B-Instruct (reference) | 56.5 / 71.9 | 44.8 / 60.0 | 14.7 |
 
-Bold marks the best result among models up to 0.8B. All models were measured on the same server with the same settings. HumanEval-RS (156 tasks) and MBPP-RS (354 tasks) come from [MultiPL-E](https://github.com/nuprl/MultiPL-E) at revision `28441b6`. The task goes to the model as a chat message with answers up to 1000 tokens, temperature 0.2, top_p 0.95 and 50 answers per task. pass@k comes from the unbiased estimator in the [Codex paper](https://arxiv.org/abs/2107.03374). The first closed code block of the answer is compiled with the tests, which is why the numbers differ from leaderboards that score code completion. `mbpp_67_bell_number` has no correct answer in Rust and counts as failed for every model. No system message was passed, each model used the default of its own chat template. Qwen2.5-Coder models are the Instruct versions, Qwen3.5-0.8B ran without thinking mode.
+Bold marks the best result among models up to 0.8B. All models were measured on the same server. HumanEval-RS (156 tasks) and MBPP-RS (354 tasks) come from [MultiPL-E](https://github.com/nuprl/MultiPL-E) at revision `28441b6`. The task goes to the model as a chat message with answers up to 1000 tokens, temperature 0.2, top_p 0.95 and 50 answers per task. vLLM took the remaining sampling parameters, top_k and repetition_penalty among them, from the `generation_config.json` of each model. pass@k comes from the unbiased estimator in the [Codex paper](https://arxiv.org/abs/2107.03374). The first closed code block of the answer is compiled with the tests, which is why the numbers differ from leaderboards that score code completion. `mbpp_67_bell_number` has no correct answer in Rust and counts as failed for every model. No system message was passed, each model used the default of its own chat template. Qwen2.5-Coder models are the Instruct versions, Qwen3.5-0.8B ran without thinking mode.
 
 [Temper Bench v2](https://maylore.com/temper-bench) is our own set of 150 Rust tasks at three difficulty levels, scored greedy pass@1.
 
@@ -58,7 +58,7 @@ out = model.generate(**inputs, max_new_tokens=1000)
 print(tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True))
 ```
 
-Without a system message the chat template adds the Temper system prompt. The default generation config samples with temperature 0.2, top_p 0.8, top_k 20 and repetition_penalty 1.05. The results above used temperature 0.2 and top_p 0.95.
+Without a system message the chat template adds the Temper system prompt. The default generation config samples with temperature 0.2, top_p 0.8, top_k 20 and repetition_penalty 1.05. The results above used temperature 0.2 and top_p 0.95 with top_k 20 and repetition_penalty 1.05 from this config.
 
 A GGUF version for llama.cpp, LM Studio and Ollama is in [maylore-ai/Temper-2-Ion-GGUF](https://huggingface.co/maylore-ai/Temper-2-Ion-GGUF).
 
