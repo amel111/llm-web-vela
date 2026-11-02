@@ -58,7 +58,7 @@ out = model.generate(**inputs, max_new_tokens=1000)
 print(tokenizer.decode(out[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True))
 ```
 
-Without a system message the chat template adds the Temper system prompt. The default generation config samples with temperature 0.7, top_p 0.8, top_k 20 and repetition_penalty 1.05. The results above used temperature 0.2 and top_p 0.95.
+Without a system message the chat template adds the Temper system prompt. The default generation config samples with temperature 0.2, top_p 0.8, top_k 20 and repetition_penalty 1.05. The results above used temperature 0.2 and top_p 0.95.
 
 A GGUF version for llama.cpp, LM Studio and Ollama is in [maylore-ai/Temper-2-Ion-GGUF](https://huggingface.co/maylore-ai/Temper-2-Ion-GGUF).
 
