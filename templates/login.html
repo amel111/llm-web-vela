@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - Temper</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/m3.css">
+<style>
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.login-card{width:360px;}
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="card login-card">
+    <h2 class="card-title">Temper</h2>
+    <p style="color:var(--md-sys-color-on-surface-variant);margin-bottom:16px;">Sign in to continue</p>
+    {% if error %}<p style="color:var(--md-sys-color-error);">{{ error }}</p>{% endif %}
+    <form method="post" action="/login">
+      <input class="field" type="password" name="password" placeholder="API key / password" autofocus required>
+      <button class="btn" type="submit" style="width:100%;">Sign in</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

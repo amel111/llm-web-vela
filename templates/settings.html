@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Settings - Temper{% endblock %}
+{% block header %}Settings & Monitoring{% endblock %}
+{% block body %}
+<div class="grid grid-2">
+  <div class="card">
+    <h3 class="card-title">Connection</h3>
+    <label>Ollama URL</label>
+    <input class="field" id="ollama_url" value="{{ settings.ollama_url }}">
+    <label>Model</label>
+    <select class="field" id="model">{{ models|safe }}</select>
+    <button class="btn" onclick="testConn()">Test connection</button>
+    <span id="connStatus" style="margin-left:12px;"></span>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Sampling</h3>
+    <label>Temperature</label><input class="field" id="temperature" type="number" step="0.05" value="{{ settings.temperature }}">
+    <label>Top P</label><input class="field" id="top_p" type="number" step="0.05" value="{{ settings.top_p }}">
+    <label>Top K</label><input class="field" id="top_k" type="number" value="{{ settings.top_k }}">
+    <label>Repeat penalty</label><input class="field" id="repeat_penalty" type="number" step="0.01" value="{{ settings.repeat_penalty }}">
+    <label>Max tokens</label><input class="field" id="max_tokens" type="number" value="{{ settings.max_tokens }}">
+    <label>Context size (num_ctx)</label><input class="field" id="num_ctx" type="number" value="{{ settings.num_ctx }}">
+  </div>
+  <div class="card">
+    <h3 class="card-title">Pricing (cost sim)</h3>
+    <label>Input $/1k tokens</label><input class="field" id="input_price" type="number" step="0.00001" value="{{ settings.input_price }}">
+    <label>Output $/1k tokens</label><input class="field" id="output_price" type="number" step="0.00001" value="{{ settings.output_price }}">
+    <label>USD to IDR</label><input class="field" id="usd_to_idr" type="number" value="{{ settings.usd_to_idr }}">
+  </div>
+  <div class="card">
+    <h3 class="card-title">Usage totals</h3>
+    <div class="grid grid-3">
+      <div class="stat"><div class="value" id="s_req">0</div><div class="label">Requests</div></div>
+      <div class="stat"><div class="value" id="s_in">0</div><div class="label">Prompt tokens</div></div>
+      <div class="stat"><div class="value" id="s_out">0</div><div class="label">Completion tokens</div></div>
+      <div class="stat"><div class="value" id="s_tot">0</div><div class="label">Total tokens</div></div>
+      <div class="stat"><div class="value" id="s_usd">$0</div><div class="label">Cost USD</div></div>
+      <div class="stat"><div class="value" id="s_idr">Rp 0</div><div class="label">Cost IDR</div></div>
+    </div>
+    <div style="margin-top:12px;">
+      <button class="btn tonal" onclick="exportCsv()">Export CSV</button>
+      <button class="btn text" onclick="refreshStats()">Refresh</button>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="card-title">Recent requests</h3>
+  <table class="table" id="recentTable">
+    <thead><tr><th>Time</th><th>Model</th><th>In</th><th>Out</th><th>Total</th><th>Elapsed</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div style="margin-top:16px;">
+  <button class="btn" onclick="saveSettings()">Save settings</button>
+</div>
+
+<script>
+async function saveSettings(){
+  const body = {
+    ollama_url: document.getElementById('ollama_url').value,
+    model: document.getElementById('model').value,
+    temperature: parseFloat(document.getElementById('temperature').value),
+    top_p: parseFloat(document.getElementById('top_p').value),
+    top_k: parseInt(document.getElementById('top_k').value),
+    repeat_penalty: parseFloat(document.getElementById('repeat_penalty').value),
+    max_tokens: parseInt(document.getElementById('max_tokens').value),
+    num_ctx: parseInt(document.getElementById('num_ctx').value),
+    input_price: parseFloat(document.getElementById('input_price').value),
+    output_price: parseFloat(document.getElementById('output_price').value),
+    usd_to_idr: parseFloat(document.getElementById('usd_to_idr').value),
+  };
+  const r = await fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){ snack('Settings saved'); } else { snack('Save failed'); }
+}
+async function testConn(){
+  const r = await fetch('/api/settings/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ollama_url:document.getElementById('ollama_url').value})});
+  const d = await r.json();
+  document.getElementById('connStatus').textContent = d.ok ? ('OK: '+d.count+' models') : ('FAIL: '+d.error);
+}
+async function refreshStats(){
+  const r = await fetch('/api/stats');
+  const d = await r.json();
+  const t = d.totals || {};
+  document.getElementById('s_req').textContent = t.requests||0;
+  document.getElementById('s_in').textContent = t.prompt_tokens||0;
+  document.getElementById('s_out').textContent = t.completion_tokens||0;
+  document.getElementById('s_tot').textContent = t.total_tokens||0;
+  const ip = parseFloat(document.getElementById('input_price').value);
+  const op = parseFloat(document.getElementById('output_price').value);
+  const rate = parseFloat(document.getElementById('usd_to_idr').value);
+  const usd = (t.prompt_tokens||0)/1000*ip + (t.completion_tokens||0)/1000*op;
+  document.getElementById('s_usd').textContent = '$'+usd.toFixed(6);
+  document.getElementById('s_idr').textContent = 'Rp '+(usd*rate).toFixed(2);
+  const tb = document.querySelector('#recentTable tbody');
+  tb.innerHTML='';
+  for(const r of (d.recent||[]).slice(-20).reverse()){
+    const tr = document.createElement('tr');
+    const ts = new Date(r.ts*1000).toLocaleTimeString();
+    tr.innerHTML = `<td>${ts}</td><td>${r.model}</td><td>${r.prompt_tokens}</td><td>${r.completion_tokens}</td><td>${r.total_tokens}</td><td>${r.elapsed_s}s</td>`;
+    tb.appendChild(tr);
+  }
+}
+function exportCsv(){ window.location='/stats/export'; }
+refreshStats();
+setInterval(refreshStats, 5000);
+</script>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Chat - Temper{% endblock %}
+{% block header %}Chat{% endblock %}
+{% block head %}
+<script>
+window.TEMPER = {
+  convId: {{ active_id or 'null' }},
+  messages: {{ messages|tojson }},
+};
+</script>
+{% endblock %}
+{% block body %}
+<div class="chat-layout">
+  <aside class="conv-list" id="convList">
+    <button class="btn" id="newChatBtn" style="width:100%;margin-bottom:8px;">+ New chat</button>
+    {% for c in conversations %}
+    <div class="conv-item {% if c.id==active_id %}active{% endif %}" data-id="{{ c.id }}" onclick="location.href='/chat/{{ c.id }}'">
+      {{ c.title or 'Untitled' }}
+    </div>
+    {% endfor %}
+  </aside>
+  <div class="chat-main">
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <textarea id="input" placeholder="Message..." rows="1"></textarea>
+      <button class="btn" id="sendBtn">Send</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/app.js"></script>
+{% endblock %}
