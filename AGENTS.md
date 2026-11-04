@@ -25,7 +25,7 @@ lalu jalankan ulang `python proxy.py` (background). Perubahan `static/` tidak bu
 - `proxy.py`: backend Flask (chat, streaming, regenerate/edit/rename, settings, stats, kompatibel OpenAI `/v1/chat/completions`).
 - Data chat & stats: `usage.db` (SQLite) lokal. Ollama stateless, tanpa history.
 - `static/app.js`: seluruh logic client. `static/ui.css`: seluruh styling (pengganti m3.css yang sudah dihapus).
-- Ollama `127.0.0.1:11434`, model `temper-2-ion:latest` (dibuat dari `Modelfile`).
+- Ollama `127.0.0.1:11434`, model aktif: `temper-2-ion:latest` (default, dari `settings.json`) dan `temper-2-axon-flash:latest`. Model picker web otomatis list model dari `/api/models` (live dari Ollama), tanpa hardcode. Model lama dibuat dari `Modelfile`.
 
 ## Lingkungan Windows / PowerShell
 - `&&` tidak valid (pakai `;`), `grep`/`sed` tidak ada (pakai `Select-String`/`Get-Content`), heredoc diblokir (tulis file script sementara).
