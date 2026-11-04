@@ -43,6 +43,17 @@ html[data-theme="dark"] {
 }
 
 * { box-sizing: border-box; }
+@supports not selector(::-webkit-scrollbar) {
+  html { scrollbar-width: thin; scrollbar-color: rgba(140,140,150,.35) transparent; }
+  html[data-theme="dark"] { scrollbar-color: rgba(140,140,150,.3) transparent; }
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(140,140,150,.35); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(140,140,150,.55); }
+::-webkit-scrollbar-corner { background: transparent; }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(140,140,150,.3); }
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(140,140,150,.5); }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
