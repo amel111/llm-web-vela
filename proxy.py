@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105b")
+ASSET_V = os.environ.get("ASSET_V", "20261105c")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")
@@ -391,6 +391,15 @@ def web_chat():
         active = convs[0]["id"]
         msgs = _list_messages(active)
     return render_template("chat.html", conv_groups=_group_conversations(convs), active_id=active, messages=msgs, settings=_SETTINGS, V=ASSET_V)
+
+
+@app.get("/chat/new")
+def web_chat_new():
+    r = _require_web()
+    if r:
+        return r
+    convs = _list_conversations()
+    return render_template("chat.html", conv_groups=_group_conversations(convs), active_id=None, messages=[], settings=_SETTINGS, V=ASSET_V)
 
 
 @app.get("/chat/<int:cid>")

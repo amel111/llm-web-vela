@@ -59,7 +59,7 @@
 
   var newChatBtn = document.getElementById("newChatBtn");
   if (newChatBtn) newChatBtn.addEventListener("click", function () {
-    location.href = "/";
+    location.href = "/chat/new";
   });
 
   // conversations: search + menus
@@ -163,7 +163,14 @@
     a.className = "conv-item active";
     a.href = "/chat/" + id;
     a.dataset.id = id;
-    a.innerHTML = '<span class="conv-title"></span>';
+    a.innerHTML = '<span class="conv-title"></span>' +
+      '<button class="conv-menu-btn" type="button" aria-label="Menu">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>' +
+      '</button>' +
+      '<div class="conv-menu" style="display:none;">' +
+      '<button type="button" class="act-rename">Rename</button>' +
+      '<button type="button" class="act-delete danger">Delete</button>' +
+      '</div>';
     a.querySelector(".conv-title").textContent = title;
     var others = sec.querySelectorAll(".conv-item");
     for (var i = 0; i < others.length; i++) others[i].classList.remove("active");
