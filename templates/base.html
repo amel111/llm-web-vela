@@ -7,7 +7,8 @@
 <script>
 (function(){var t=localStorage.getItem("temper-theme")||"light";document.documentElement.setAttribute("data-theme",t);})();
 </script>
-<link rel="stylesheet" href="/static/ui.css">
+<link rel="stylesheet" href="/static/ui.css?v={{ V }}">
+<link rel="stylesheet" href="/static/vendor/katex.min.css">
 {% block head %}{% endblock %}
 </head>
 <body>
@@ -20,6 +21,9 @@ function snack(msg){var e=document.getElementById("snack");e.textContent=msg;e.c
 <script src="/static/vendor/purify.min.js"></script>
 <script src="/static/vendor/highlight.min.js"></script>
 <script src="/static/vendor/rust.min.js"></script>
+<script src="/static/vendor/katex.min.js"></script>
+<script src="/static/vendor/katex-auto-render.min.js"></script>
 {% block scripts %}{% endblock %}
+<script src="/static/app.js?v={{ V }}"></script>
 </body>
 </html>

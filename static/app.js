@@ -218,7 +218,110 @@
   var rafHandle = null;
 
   function md(text) {
-    return DOMPurify.sanitize(marked.parse(text));
+    var pre = wrapBareLatex(text);
+    var ex = extractMath(pre);
+    var html = marked.parse(ex.text);
+    return DOMPurify.sanitize(renderMathBlocks(html, ex.blocks));
+  }
+
+  // Extract math spans BEFORE marked.parse: marked treats \( as escape and
+  // would eat the delimiters. Replace each with a null-char placeholder, then
+  // substitute KaTeX HTML after markdown rendering.
+  function extractMath(text) {
+    var blocks = [];
+    function ph(latex, display) {
+      var n = blocks.length;
+      blocks.push({ latex: latex, display: display });
+      return "\u0000M" + n + "\u0000";
+    }
+    var out = "", i = 0, inFence = false;
+    while (i < text.length) {
+      if (text.substr(i, 3) === "```") { inFence = !inFence; out += "```"; i += 3; continue; }
+      if (inFence) { out += text[i]; i++; continue; }
+      if (text.substr(i, 2) === "$$") {
+        var e = text.indexOf("$$", i + 2);
+        if (e !== -1) { out += ph(text.slice(i + 2, e), true); i = e + 2; continue; }
+      }
+      if (text.substr(i, 2) === "\\[") {
+        var e2 = text.indexOf("\\]", i + 2);
+        if (e2 !== -1) { out += ph(text.slice(i + 2, e2), true); i = e2 + 2; continue; }
+      }
+      if (text.substr(i, 2) === "\\(") {
+        var e3 = text.indexOf("\\)", i + 2);
+        if (e3 !== -1) { out += ph(text.slice(i + 2, e3), false); i = e3 + 2; continue; }
+      }
+      if (text[i] === "$" && (i === 0 || text[i - 1] !== "\\")) {
+        var e4 = text.indexOf("$", i + 1);
+        var inner = e4 === -1 ? null : text.slice(i + 1, e4);
+        if (inner && inner.length <= 300 && inner.indexOf("\n") === -1) {
+          out += ph(inner, false); i = e4 + 1; continue;
+        }
+      }
+      out += text[i]; i++;
+    }
+    return { text: out, blocks: blocks };
+  }
+
+  function renderMathBlocks(html, blocks) {
+    if (!blocks || !blocks.length || !window.katex) return html;
+    return html.replace(/\u0000M(\d+)\u0000/g, function (_, n) {
+      var b = blocks[+n];
+      if (!b) return "";
+      try {
+        return window.katex.renderToString(b.latex, { displayMode: b.display, throwOnError: false });
+      } catch (e) { return b.latex; }
+    });
+  }
+
+  // ---------- math pre-pass: wrap bare LaTeX in $...$ ----------
+  // Small models often emit LaTeX without any $ / \( \) delimiters,
+  // e.g. "(\frac{4}{3}x^3 + C)". Detect parenthesized groups that look
+  // like math and wrap them so KaTeX auto-render picks them up.
+  var LATEX_CMD = /\\(?:frac|sqrt|cdot|times|pm|mp|div|sum|prod|int|oint|lim|alpha|beta|gamma|delta|epsilon|varepsilon|zeta|eta|theta|iota|kappa|lambda|mu|nu|xi|rho|sigma|tau|upsilon|phi|chi|psi|omega|Gamma|Delta|Theta|Lambda|Sigma|Phi|Psi|Omega|partial|nabla|infty|le|leq|ge|geq|ne|neq|approx|equiv|sim|propto|rightarrow|Rightarrow|leftarrow|Leftarrow|to|mapsto|in|notin|ni|subset|subseteq|supset|forall|exists|mathbb|mathrm|mathcal|mathsf|text|textrm|quad|qquad|begin|end|binom|left|right|big|Big|bigg|Bigg|atop|choose|over)\b/;
+
+  function wrapBareLatex(text) {
+    if (/\$|\\\(|\\\[/.test(text)) return text; // already delimited
+    if (!LATEX_CMD.test(text)) return text;     // no LaTeX anywhere
+    var out = "", i = 0;
+    while (i < text.length) {
+      var open = text.indexOf("(", i);
+      if (open === -1) { out += text.slice(i); break; }
+      var depth = 0, j = open;
+      for (; j < text.length; j++) {
+        if (text[j] === "(") depth++;
+        else if (text[j] === ")") { depth--; if (depth === 0) break; }
+      }
+      if (j >= text.length) { out += text.slice(i); break; } // unbalanced, leave rest
+      var inner = text.slice(open + 1, j);
+      // strip LaTeX commands, then reject groups that still contain long
+      // plain words (prose, not math)
+      var stripped = inner.replace(/\\[a-zA-Z]+/g, "");
+      if (LATEX_CMD.test(inner) && !/[A-Za-z]{5,}/.test(stripped)) {
+        out += text.slice(i, open) + "($" + inner + "$)";
+      } else {
+        out += text.slice(i, j + 1);
+      }
+      i = j + 1;
+    }
+    return out;
+  }
+
+  // ---------- math: render $...$ / $$...$$ via KaTeX ----------
+  function renderMath(el) {
+    if (!window.renderMathInElement || !el) return;
+    try {
+      window.renderMathInElement(el, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true }
+        ],
+        throwOnError: false,
+        ignoredTags: ["script", "noscript", "style", "textarea", "pre", "code"],
+        ignoredClasses: ["pending-code"]
+      });
+    } catch (e) {}
   }
 
   function splitOpenFence(text) {
@@ -239,6 +342,7 @@
       var code = el.querySelector(".pending-code code");
       if (code) code.textContent = parts.tail;
     }
+    renderMath(el);
   }
 
   function finalize(el, text) {
@@ -249,6 +353,7 @@
     for (var i = 0; i < blocks.length; i++) {
       try { hljs.highlightElement(blocks[i]); } catch (e) {}
     }
+    renderMath(el);
     addCopyButtons(el);
   }
 
