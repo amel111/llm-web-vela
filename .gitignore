@@ -1,0 +1,4 @@
+__pycache__/
+.superpowers/
+settings.json
+usage_export.csv
