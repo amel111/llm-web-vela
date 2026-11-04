@@ -258,7 +258,7 @@
     rafHandle = requestAnimationFrame(function () {
       rafPending = false;
       renderInto(el, text);
-      stickToBottom();
+      if (followStream) forceScrollBottom();
     });
   }
 
@@ -493,7 +493,7 @@
     controller = new AbortController();
     var full = "";
     var lastUsage = null;
-    stickToBottom();
+    forceScrollBottom();
 
     fetch(url, {
       method: "POST",
@@ -590,6 +590,7 @@
     ta.value = "";
     autosize();
     buildUserRow({ role: "user", id: null, content: text });
+    forceScrollBottom();
     streamReply({ conversation_id: convId, message: text }, "/api/chat/send");
   }
   sendBtn.addEventListener("click", send);
@@ -611,6 +612,15 @@
       threadEl.scrollTop = threadEl.scrollHeight;
     }
   }
+  var followStream = false;
+  function forceScrollBottom() {
+    threadEl.scrollTop = threadEl.scrollHeight;
+    followStream = true;
+  }
+  threadEl.addEventListener("scroll", function () {
+    if (!streamActive) return;
+    followStream = (threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight) < 24;
+  });
 
   // ---------- settings modal ----------
   var modal = document.getElementById("settingsModal");
