@@ -670,20 +670,30 @@
     }).catch(function () {});
   }
 
+  var fmtUsd = function (v) {
+    if (!isFinite(v)) v = 0;
+    var s = v.toFixed(6).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    return "$" + s;
+  };
+  var fmtIdr = function (v) {
+    if (!isFinite(v)) v = 0;
+    return "Rp " + Math.round(v).toLocaleString("id-ID");
+  };
+
   function refreshStats() {
     fetch("/api/stats").then(function (r) { return r.json(); }).then(function (d) {
       var t = d.totals || {};
       var setText = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-      setText("s_req", t.requests || 0);
-      setText("s_in", t.prompt_tokens || 0);
-      setText("s_out", t.completion_tokens || 0);
-      setText("s_tot", t.total_tokens || 0);
+      setText("s_req", (t.requests || 0).toLocaleString("id-ID"));
+      setText("s_in", (t.prompt_tokens || 0).toLocaleString("id-ID"));
+      setText("s_out", (t.completion_tokens || 0).toLocaleString("id-ID"));
+      setText("s_tot", (t.total_tokens || 0).toLocaleString("id-ID"));
       var ip = parseFloat(document.getElementById("s_input_price").value) || 0;
       var op = parseFloat(document.getElementById("s_output_price").value) || 0;
       var rate = parseFloat(document.getElementById("s_usd_to_idr").value) || 0;
       var usd = (t.prompt_tokens || 0) / 1000 * ip + (t.completion_tokens || 0) / 1000 * op;
-      setText("s_usd", "$" + usd.toFixed(6));
-      setText("s_idr", "Rp " + (usd * rate).toFixed(2));
+      setText("s_usd", fmtUsd(usd));
+      setText("s_idr", fmtIdr(usd * rate));
       var tb = document.getElementById("recentBody");
       if (tb) {
         tb.innerHTML = "";
