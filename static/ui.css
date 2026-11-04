@@ -153,7 +153,6 @@ button { font: inherit; color: inherit; }
   height: 52px; flex: none; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; padding: 0 16px; gap: 8px;
 }
-.hamburger { display: inline-flex; }
 .model-picker { position: relative; }
 .model-btn {
   display: inline-flex; align-items: center; gap: 6px;
