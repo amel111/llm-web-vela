@@ -110,9 +110,10 @@ button { font: inherit; color: inherit; }
 .conv-item .conv-menu-btn {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
   width: 26px; height: 26px; border: none; background: transparent;
-  border-radius: 6px; cursor: pointer; display: none; color: var(--text-secondary);
+  border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-secondary);
 }
-.conv-item:hover .conv-menu-btn { display: inline-flex; align-items: center; justify-content: center; }
+.conv-item:hover .conv-menu-btn { background: var(--border); }
 .conv-item .conv-menu-btn:hover { background: var(--border); }
 .conv-menu {
   position: absolute; right: 6px; top: 34px; z-index: 40; min-width: 130px;
