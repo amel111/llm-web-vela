@@ -1,31 +1,20 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}Temper{% endblock %}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
-<link rel="stylesheet" href="/static/m3.css">
+<script>
+(function(){var t=localStorage.getItem("temper-theme")||"light";document.documentElement.setAttribute("data-theme",t);})();
+</script>
+<link rel="stylesheet" href="/static/ui.css">
 {% block head %}{% endblock %}
 </head>
 <body>
-<div class="app">
-  <nav class="nav-rail">
-    <a href="/" class="{% if active=='chat' %}active{% endif %}"><span class="icon">chat</span>Chat</a>
-    <a href="/settings" class="{% if active=='settings' %}active{% endif %}"><span class="icon">settings</span>Settings</a>
-    <a href="/logout"><span class="icon">logout</span>Logout</a>
-  </nav>
-  <div class="content">
-    <header class="top-app-bar">{% block header %}Temper{% endblock %}</header>
-    <div class="body">{% block body %}{% endblock %}</div>
-  </div>
-</div>
+{% block body %}{% endblock %}
 <div class="snackbar" id="snack"></div>
 <script>
-function snack(msg){const e=document.getElementById('snack');e.textContent=msg;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2500);}
+function snack(msg){var e=document.getElementById("snack");e.textContent=msg;e.classList.add("show");setTimeout(function(){e.classList.remove("show");},2500);}
 </script>
 <script src="/static/vendor/marked.min.js"></script>
 <script src="/static/vendor/purify.min.js"></script>
