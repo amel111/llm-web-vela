@@ -61,10 +61,6 @@
   if (newChatBtn) newChatBtn.addEventListener("click", function () {
     location.href = "/";
   });
-  var newChatPencil = document.getElementById("newChatPencil");
-  if (newChatPencil) newChatPencil.addEventListener("click", function () {
-    location.href = "/";
-  });
 
   // conversations: search + menus
   var searchInput = document.getElementById("convSearch");
