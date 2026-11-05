@@ -139,11 +139,36 @@
     if (inner) inner.style.display = "none";
   }
 
+  var pendingDelete = null;
   function deleteConv(id, item) {
-    if (!window.confirm("Delete this conversation?")) return;
-    fetch("/api/conversations/" + id, { method: "DELETE" }).then(function () {
-      if (id === convId) location.href = "/";
-      else item.remove();
+    var title = item.querySelector(".conv-title");
+    pendingDelete = { id: id, item: item, title: title ? title.textContent : "this conversation" };
+    var titleEl = document.getElementById("deleteConvTitle");
+    if (titleEl) titleEl.textContent = pendingDelete.title;
+    var deleteModal = document.getElementById("deleteModal");
+    if (deleteModal) deleteModal.classList.add("open");
+  }
+
+  function closeDeleteModal() {
+    var deleteModal = document.getElementById("deleteModal");
+    if (deleteModal) deleteModal.classList.remove("open");
+    pendingDelete = null;
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    var target = pendingDelete;
+    var confirmBtn = document.getElementById("deleteConfirm");
+    if (confirmBtn) confirmBtn.disabled = true;
+    fetch("/api/conversations/" + target.id, { method: "DELETE" }).then(function (response) {
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      if (target.id === convId) location.href = "/";
+      else target.item.remove();
+      closeDeleteModal();
+    }).catch(function (error) {
+      snack("Delete failed: " + error.message);
+    }).finally(function () {
+      if (confirmBtn) confirmBtn.disabled = false;
     });
   }
 
@@ -187,7 +212,20 @@
     });
   }
   function fillDropdown(dd) {
-    return fetch("/api/models").then(function (r) { return r.json(); }).then(function (d) {
+    return Promise.all([
+      fetch("/api/models").then(function (r) { return r.json(); }),
+      fetch("/api/model_status").then(function (r) { return r.json(); })
+    ]).then(function (results) {
+      var d = results[0];
+      var status = results[1];
+      var running = status.running || [];
+      function isLoaded(name) {
+        var base = name.split(":")[0];
+        for (var n = 0; n < running.length; n++) {
+          if (running[n] === name || running[n].split(":")[0] === base) return true;
+        }
+        return false;
+      }
       dd.innerHTML = "";
       var list = (d.data || []).map(function (m) { return m.id; });
       if (!list.length) list = [currentModel];
@@ -212,6 +250,7 @@
               snack("Loading (" + name.replace(":latest", "") + ")…");
               loadModel(name).then(function (r) { return r.json(); }).then(function (res) {
                 snack(res.ok ? "Model: " + name : "Load failed");
+                fillDropdown(dd);
               }).catch(function () { snack("Load failed"); });
               pollModelStatus();
             });
@@ -221,9 +260,12 @@
         ub.type = "button";
         ub.className = "model-unload";
         ub.title = "Unload model";
+        ub.disabled = !isLoaded(list[i]);
+        ub.setAttribute("aria-label", ub.disabled ? "Model is not loaded" : "Unload model");
         ub.innerHTML = UNLOAD_ICON;
         ub.addEventListener("click", function (name) {
           return function () {
+            if (this.disabled) return;
             snack("Unloading " + name + "…");
             fetch("/api/model_unload", {
               method: "POST", headers: { "Content-Type": "application/json" },
@@ -231,6 +273,7 @@
             }).then(function (r) { return r.json(); }).then(function (res) {
               if (res.ok) snack("Model unloaded");
               else snack("Unload failed");
+              fillDropdown(dd);
               pollModelStatus();
             }).catch(function () { snack("Unload failed"); });
           };
@@ -488,7 +531,9 @@
   var ICONS = {
     copyMsg: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
     regen: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/>',
-    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    prev: '<path d="m15 18-6-6 6-6"/>',
+    next: '<path d="m9 18 6-6-6-6"/>'
   };
 
   // ---------- message rows ----------
@@ -514,11 +559,12 @@
     eb.className = "icon-btn";
     eb.title = "Edit";
     icon(eb, ICONS.edit, 14);
-    eb.addEventListener("click", function () { startEdit(m.id, row); });
+    eb.addEventListener("click", function () { startEdit(row); });
     acts.appendChild(eb);
     wrap.appendChild(acts);
     row.appendChild(wrap);
-    rows.push({ el: row, role: "user", id: m.id, content: m.content });
+    rows.push({ el: row, role: "user", id: m.id, content: m.content,
+      branchOf: m.branch_group || m.branch_of || m.id, versions: m.versions || [m], versionIndex: (m.versions || [m]).length - 1 });
     return row;
   }
 
@@ -526,7 +572,7 @@
     var row = appendRow("assistant");
     finalize(row, m.content || "");
     appendAssistantActions(row, m.content || "", m);
-    rows.push({ el: row, role: "assistant", id: m.id, content: m.content });
+    rows.push({ el: row, role: "assistant", id: m.id, content: m.content, branchOf: null, pairId: null });
     return row;
   }
 
@@ -569,62 +615,147 @@
       return;
     }
     if (emptyEl) emptyEl.style.display = "none";
+    var latestByBranch = {};
     for (var i = 0; i < history.length; i++) {
-      if (history[i].role === "user") buildUserRow(history[i]);
-      else buildAssistantRow(history[i]);
+      if (history[i].role !== "user") continue;
+      var branch = history[i].branch_group || history[i].branch_of || history[i].id;
+      latestByBranch[branch] = history[i].id;
+    }
+    var staleAssistantIds = {};
+    for (var k = 0; k + 1 < history.length; k++) {
+      if (history[k].role !== "user" || history[k + 1].role !== "assistant") continue;
+      var staleKey = history[k].branch_group || history[k].branch_of || history[k].id;
+      if (latestByBranch[staleKey] !== history[k].id) staleAssistantIds[history[k + 1].id] = true;
+    }
+    for (var j = 0; j < history.length; j++) {
+      var message = history[j];
+      if (message.role === "user") {
+        var key = message.branch_group || message.branch_of || message.id;
+        if (latestByBranch[key] !== message.id) continue;
+        var versions = history.filter(function (candidate) {
+          return candidate.role === "user" &&
+            (candidate.branch_group || candidate.branch_of || candidate.id) === key;
+        });
+        buildUserRow(Object.assign({}, message, { versions: versions }));
+        if (versions.length > 1 && j + 1 < history.length && history[j + 1].role === "assistant") {
+          var userEntry = rows[rows.length - 1];
+          var assistantRow = buildAssistantRow(history[j + 1]);
+          makePager(userEntry, assistantRow);
+          j++;
+        }
+      } else {
+        if (staleAssistantIds[message.id]) continue;
+        buildAssistantRow(message);
+      }
     }
     threadEl.scrollTop = threadEl.scrollHeight;
   }
 
-  // ---------- edit user message ----------
-  function startEdit(mid, row) {
+  // ---------- edit / resend user message (versions) ----------
+  function setBubbleText(row, text) {
+    var bubble = row.querySelector(".bubble");
+    if (bubble) bubble.textContent = text;
+  }
+  function rowIndex(rowEl) {
+    for (var i = 0; i < rows.length; i++) if (rows[i].el === rowEl) return i;
+    return -1;
+  }
+  function makePager(userEntry, assistantRow) {
+    var versions = userEntry.versions || [];
+    var userRow = userEntry.el;
+    if (assistantRow.querySelector(".version-pager")) return;
+    if (versions.length <= 1) return;
+    var pager = document.createElement("div");
+    pager.className = "version-pager";
+    var prevBtn = document.createElement("button"); prevBtn.type = "button"; prevBtn.className = "icon-btn"; prevBtn.title = "Previous version";
+    icon(prevBtn, ICONS.prev, 14);
+    var nextBtn = document.createElement("button"); nextBtn.type = "button"; nextBtn.className = "icon-btn"; nextBtn.title = "Next version";
+    icon(nextBtn, ICONS.next, 14);
+    var lbl = document.createElement("span"); lbl.className = "version-count";
+    pager.appendChild(prevBtn); pager.appendChild(lbl); pager.appendChild(nextBtn);
+    assistantRow.appendChild(pager);
+    var sel = userEntry.versionIndex == null ? versions.length - 1 : userEntry.versionIndex;
+    setBubbleText(userRow, versions[sel].content);
+    lbl.textContent = (sel + 1) + "/" + versions.length;
+    function updateDisabled() {
+      prevBtn.disabled = sel <= 0; nextBtn.disabled = sel >= versions.length - 1;
+    }
+    function go(n) {
+      sel = Math.max(0, Math.min(versions.length - 1, n));
+      setBubbleText(userRow, versions[sel].content);
+      lbl.textContent = (sel + 1) + "/" + versions.length;
+      updateDisabled();
+    }
+    updateDisabled();
+    prevBtn.addEventListener("click", function () { go(sel - 1); });
+    nextBtn.addEventListener("click", function () { go(sel + 1); });
+  }
+  function startEdit(row) {
     if (streamActive) return;
     var entry = null;
-    for (var i = 0; i < rows.length; i++) if (rows[i].id === mid) entry = rows[i];
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].el === row && rows[i].role === "user") {
+        entry = rows[i];
+        break;
+      }
+    }
     if (!entry) return;
     var wrap = row.querySelector(".bubble-wrap");
     var bubble = row.querySelector(".bubble");
     var input = document.createElement("textarea");
     input.className = "user-edit-input";
-    input.value = entry.content;
+    input.value = bubble ? bubble.textContent : entry.content;
     wrap.replaceChild(input, bubble);
     input.focus();
+    var editing = true;
+    function cancelEdit() {
+      if (!editing) return;
+      editing = false;
+      if (input.parentNode === wrap) wrap.replaceChild(bubble, input);
+    }
     input.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
-      else if (e.key === "Escape") { wrap.replaceChild(bubble, input); }
+      else if (e.key === "Escape") cancelEdit();
     });
     input.addEventListener("blur", function () {
-      if (input.parentNode) wrap.replaceChild(bubble, input);
+      cancelEdit();
     });
     function submit() {
       var val = input.value.trim();
-      if (!val) { wrap.replaceChild(bubble, input); return; }
+      if (!val) { cancelEdit(); return; }
+      editing = false;
       input.disabled = true;
-      doEdit(mid, val, row);
+      doEdit(entry, val, row);
     }
   }
 
-  function doEdit(mid, content, userRow) {
-    // drop everything after the edited message in the DOM
-    var idx = -1;
-    for (var i = 0; i < rows.length; i++) if (rows[i].id === mid) { idx = i; break; }
-    if (idx === -1) return;
-    for (var j = rows.length - 1; j > idx; j--) {
-      rows[j].el.remove();
-      rows.pop();
+  function doEdit(entry, content, userRow) {
+    if (streamActive) return;
+    // truncate DOM rows after the edited entry (keep the entry itself)
+    var idx = rowIndex(userRow);
+    var after = rows.slice(idx + 1);
+    for (var j = 0; j < after.length; j++) {
+      after[j].el.remove();
     }
-    // replace the inline input with a fresh bubble
-    var input = userRow.querySelector(".user-edit-input");
-    var bubble = document.createElement("div");
-    bubble.className = "bubble";
-    bubble.textContent = content;
-    if (input && input.parentNode) input.parentNode.replaceChild(bubble, input);
-    else {
-      var wrap = userRow.querySelector(".bubble-wrap");
-      if (wrap) wrap.appendChild(bubble);
-    }
-    var e0 = findEntry(mid); if (e0) e0.content = content;
-    streamReply({ message_id: mid, content: content }, "/api/chat/edit");
+    rows.length = idx + 1;
+    setBubbleText(userRow, content);
+    entry.content = content;
+    entry.versions = (entry.versions || []).concat([{ id: Date.now(), role: "user", content: content }]);
+    entry.versionIndex = entry.versions.length - 1;
+    streamReply({ message_id: entry.id, conversation_id: convId, content: content }, "/api/chat/edit");
+  }
+
+  // resend the active version (no edit)
+  function launchResend(entry, userRow, content) {
+    if (streamActive) return;
+    var idx = rowIndex(userRow);
+    var after = rows.slice(idx + 1);
+    for (var j = 0; j < after.length; j++) after[j].el.remove();
+    rows.length = idx + 1;
+    setBubbleText(userRow, content);
+    entry.versions = (entry.versions || []).concat([{ id: Date.now(), role: "user", content: content }]);
+    entry.versionIndex = entry.versions.length - 1;
+    streamReply({ message_id: entry.id, conversation_id: convId, content: content }, "/api/chat/edit");
   }
 
   function findEntry(id) {
@@ -653,7 +784,7 @@
     emptyEl.style.display = "none";
     var row = appendRow("assistant");
     row.classList.add("stream-caret");
-    rows.push({ el: row, role: "assistant", id: null, content: "" });
+    rows.push({ el: row, role: "assistant", id: null, content: "", branchOf: null, pairId: null });
     streamActive = true;
     setSendState();
     controller = new AbortController();
@@ -728,6 +859,11 @@
         elapsed_s: lastUsage.elapsed_s,
         model: lastUsage.model
       } : null);
+      var assistantIndex = rows.indexOf(entry);
+      if (assistantIndex > 0) {
+        var userEntry = rows[assistantIndex - 1];
+        if (userEntry && userEntry.role === "user") makePager(userEntry, row);
+      }
     }
     stickToBottom();
   }
@@ -795,6 +931,9 @@
   var modal = document.getElementById("settingsModal");
   var settingsBtn = document.getElementById("settingsBtn");
   var modalClose = document.getElementById("modalClose");
+  var deleteModal = document.getElementById("deleteModal");
+  var deleteCancel = document.getElementById("deleteCancel");
+  var deleteConfirm = document.getElementById("deleteConfirm");
   var statsTimer = null;
 
   function openModal() {
@@ -812,7 +951,16 @@
   if (settingsBtn) settingsBtn.addEventListener("click", openModal);
   if (modalClose) modalClose.addEventListener("click", closeModal);
   if (modal) modal.addEventListener("click", function (e) { if (e.target === modal) closeModal(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
+  if (deleteCancel) deleteCancel.addEventListener("click", closeDeleteModal);
+  if (deleteConfirm) deleteConfirm.addEventListener("click", confirmDelete);
+  if (deleteModal) deleteModal.addEventListener("click", function (e) {
+    if (e.target === deleteModal) closeDeleteModal();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    if (deleteModal && deleteModal.classList.contains("open")) closeDeleteModal();
+    else closeModal();
+  });
 
   function fillSettingsForm() {
     var set = function (id, v) { var el = document.getElementById(id); if (el != null && v != null) el.value = v; };

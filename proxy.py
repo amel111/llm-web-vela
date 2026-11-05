@@ -12,7 +12,7 @@ import httpx
 
 OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
 MODEL = os.environ.get("OLLAMA_MODEL", "temper-2-ion")
-API_KEY = os.environ.get("PROXY_API_KEY", "sk-temper-24h-askdj1")
+API_KEY = os.environ.get("PROXY_API_KEY", "change-me")
 HOST = os.environ.get("PROXY_HOST", "0.0.0.0")
 PORT = int(os.environ.get("PROXY_PORT", "8080"))
 DB_PATH = os.environ.get("USAGE_DB", "usage.db")
@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105o")
+ASSET_V = os.environ.get("ASSET_V", "20261105t")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")
@@ -65,6 +65,8 @@ def _init_db():
             created_at REAL NOT NULL,
             model TEXT,
             elapsed_s REAL,
+            branch_of INTEGER,
+            branch_group INTEGER,
             FOREIGN KEY(conversation_id) REFERENCES conversations(id)
         )"""
     )
@@ -73,6 +75,10 @@ def _init_db():
         con.execute("ALTER TABLE messages ADD COLUMN model TEXT")
     if cols and "elapsed_s" not in cols:
         con.execute("ALTER TABLE messages ADD COLUMN elapsed_s REAL")
+    if cols and "branch_of" not in cols:
+        con.execute("ALTER TABLE messages ADD COLUMN branch_of INTEGER")
+    if cols and "branch_group" not in cols:
+        con.execute("ALTER TABLE messages ADD COLUMN branch_group INTEGER")
     con.commit()
     con.close()
 
@@ -562,6 +568,26 @@ def _stream_chat(cid, history, model, endpoint):
     return Response(stream_with_context(gen()), mimetype="text/event-stream")
 
 
+def _active_chat_messages(cid):
+    """Return one active user version per branch, preserving conversation order."""
+    messages = _list_messages(cid)
+    latest = {}
+    for message in messages:
+        if message["role"] != "user":
+            continue
+        key = message["branch_group"] or message["branch_of"] or message["id"]
+        latest[key] = message["id"]
+
+    active = []
+    for message in messages:
+        if message["role"] == "user":
+            key = message["branch_group"] or message["branch_of"] or message["id"]
+            if latest[key] != message["id"]:
+                continue
+        active.append({"role": message["role"], "content": message["content"]})
+    return active
+
+
 @app.post("/api/chat/send")
 def api_chat_send():
     if not _web_authed():
@@ -577,9 +603,7 @@ def api_chat_send():
     if not conv.get("title"):
         _set_title(cid, text[:40])
 
-    msgs_db = _list_messages(cid)
-    api_msgs = [{"role": m["role"], "content": m["content"]} for m in msgs_db]
-    return _stream_chat(cid, api_msgs, _SETTINGS.get("model"), "/web/chat")
+    return _stream_chat(cid, _active_chat_messages(cid), _SETTINGS.get("model"), "/web/chat")
 
 
 @app.post("/api/chat/regenerate")
@@ -601,9 +625,7 @@ def api_chat_regenerate():
     con.close()
     if not row:
         return jsonify({"error": "empty"}), 400
-    msgs_db = _list_messages(cid)
-    api_msgs = [{"role": m["role"], "content": m["content"]} for m in msgs_db]
-    return _stream_chat(cid, api_msgs, _SETTINGS.get("model"), "/web/regenerate")
+    return _stream_chat(cid, _active_chat_messages(cid), _SETTINGS.get("model"), "/web/regenerate")
 
 
 @app.post("/api/chat/edit")
@@ -612,26 +634,39 @@ def api_chat_edit():
         return jsonify({"error": "unauth"}), 401
     data = request.get_json(force=True, silent=True) or {}
     mid = data.get("message_id")
+    cid = data.get("conversation_id")
     content = (data.get("content") or "").strip()
-    if not mid or not content:
+    if not content:
         return jsonify({"error": "missing"}), 400
     con = sqlite3.connect(DB_PATH)
-    row = con.execute("SELECT id, role, conversation_id FROM messages WHERE id=?", (int(mid),)).fetchone()
+    if not mid and cid:
+        latest = con.execute(
+            "SELECT id FROM messages WHERE conversation_id=? AND role='user' ORDER BY id DESC LIMIT 1",
+            (int(cid),),
+        ).fetchone()
+        mid = latest[0] if latest else None
+    if not mid:
+        con.close()
+        return jsonify({"error": "missing message_id"}), 400
+    row = con.execute("SELECT id, role, conversation_id, branch_of, branch_group FROM messages WHERE id=?", (int(mid),)).fetchone()
     if not row:
         con.close()
         return jsonify({"error": "not found"}), 404
     cid = row[2]
+    branchOf = row[3] or row[0]
+    group = row[4] or row[0]
     if row[1] != "user":
         con.close()
         return jsonify({"error": "can only edit user messages"}), 400
-    con.execute("UPDATE messages SET content=? WHERE id=?", (content, int(mid)))
+    # Keep the original as an older version and remove the old response branch.
     con.execute("DELETE FROM messages WHERE conversation_id=? AND id>?", (cid, int(mid)))
+    now = time.time()
+    con.execute("INSERT INTO messages (conversation_id,role,content,prompt_tokens,completion_tokens,created_at,model,elapsed_s,branch_of,branch_group) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (cid, "user", content, 0, 0, now, None, None, branchOf, group))
     con.commit()
     con.close()
     _set_title(cid, content[:40])
-    msgs_db = _list_messages(cid)
-    api_msgs = [{"role": m["role"], "content": m["content"]} for m in msgs_db]
-    return _stream_chat(cid, api_msgs, _SETTINGS.get("model"), "/web/edit")
+    return _stream_chat(cid, _active_chat_messages(cid), _SETTINGS.get("model"), "/web/edit")
 
 
 @app.post("/api/conversations/<int:cid>/rename")
@@ -738,9 +773,9 @@ def _add_message(cid, role, content, pt=0, ct=0, model=None, elapsed=None):
 
 def _list_messages(cid):
     con = sqlite3.connect(DB_PATH)
-    rows = con.execute("SELECT id,role,content,prompt_tokens,completion_tokens,created_at,model,elapsed_s FROM messages WHERE conversation_id=? ORDER BY id", (cid,)).fetchall()
+    rows = con.execute("SELECT id,role,content,prompt_tokens,completion_tokens,created_at,model,elapsed_s,branch_of,branch_group FROM messages WHERE conversation_id=? ORDER BY id", (cid,)).fetchall()
     con.close()
-    return [{"id": r[0], "role": r[1], "content": r[2], "prompt_tokens": r[3], "completion_tokens": r[4], "created_at": r[5], "model": r[6], "elapsed_s": r[7]} for r in rows]
+    return [{"id": r[0], "role": r[1], "content": r[2], "prompt_tokens": r[3], "completion_tokens": r[4], "created_at": r[5], "model": r[6], "elapsed_s": r[7], "branch_of": r[8], "branch_group": r[9]} for r in rows]
 
 
 def _set_title(cid, title):

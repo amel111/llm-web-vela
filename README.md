@@ -14,6 +14,34 @@ tags:
 
 # Temper-2-Ion
 
+## llm-coder web proxy (Python)
+
+This repository contains the Flask web proxy and ChatGPT-style UI used to run
+local Ollama models. Ollama remains the model runtime; this application stores
+conversations and usage statistics in a local SQLite database.
+
+### Requirements
+
+- Python 3.11+
+- Ollama running at `http://127.0.0.1:11434`
+- At least one model pulled with `ollama pull <model>`
+
+### Run
+
+```powershell
+$env:PROXY_API_KEY = "set-a-local-key"
+python proxy.py
+```
+
+Open `http://127.0.0.1:8080`. The default development key is `change-me`;
+set `PROXY_API_KEY` before exposing the server or publishing a deployment.
+
+The selected model and Ollama URL are stored in the local, ignored
+`settings.json`. Installed models are discovered live from Ollama.
+
+The Rust rewrite is maintained separately in
+[`Temper-2-Ion-rust`](../Temper-2-Ion-rust).
+
 Temper 2 Ion is a 0.5B parameter model for Rust code and the successor to [Temper-1-0.5B](https://huggingface.co/maylore-ai/Temper-1-0.5B). It understands requests in Russian and English and is aimed at running on weak hardware. On HumanEval-Rust it solves 32% more tasks on the first attempt than Temper-1-0.5B.
 
 Website: [maylore.com/temper-2-ion](https://maylore.com/temper-2-ion)

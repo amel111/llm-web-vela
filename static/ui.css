@@ -206,6 +206,8 @@ button { font: inherit; color: inherit; }
   width: 30px; height: 30px; padding: 0; border-radius: 6px; color: var(--text-secondary);
 }
 .model-dropdown .model-unload:hover { background: var(--border); color: var(--text); }
+.model-dropdown .model-unload:disabled { opacity: .3; cursor: not-allowed; }
+.model-dropdown .model-unload:disabled:hover { background: transparent; color: var(--text-secondary); }
 .topbar-right { margin-left: auto; display: inline-flex; gap: 4px; }
 
 /* ---------- thread ---------- */
@@ -267,6 +269,14 @@ button { font: inherit; color: inherit; }
 .msg-actions .icon-btn:hover { background: var(--hover); color: var(--text); }
 .msg-actions .meta { font-size: 11px; color: var(--text-tertiary); padding: 0 8px; align-self: center; }
 .msg-actions.right { justify-content: flex-end; }
+.version-pager {
+  display: inline-flex; align-items: center; gap: 2px;
+  color: var(--text-tertiary); margin-left: 8px; flex: none; align-self: center;
+}
+.version-pager .icon-btn { height: 30px; width: 30px; border-radius: 6px; }
+.version-pager .icon-btn:hover { background: var(--hover); color: var(--text); }
+.version-pager .icon-btn:disabled { opacity: .35; pointer-events: none; }
+.version-count { font-size: 11px; color: var(--text-tertiary); padding: 0 4px; white-space: nowrap; }
 .bubble-wrap { width: fit-content; max-width: 75%; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; }
 .msg-error { color: #e5484d; font-size: 13px; margin-top: 6px; }
 .user-edit-input { max-width: 75%; width: 100%; border: 1px solid var(--border-strong); border-radius: 16px; padding: 10px 14px; background: var(--bg); color: var(--text); font-family: inherit; font-size: 16px; outline: none; }
@@ -346,6 +356,12 @@ button { font: inherit; color: inherit; }
 }
 .field-row input:focus { border-color: var(--text-secondary); }
 .modal .btn-row { display: flex; gap: 10px; margin-top: 16px; align-items: center; }
+.delete-modal { width: min(420px, 92vw); padding: 24px; }
+.delete-modal .modal-sub { margin-bottom: 0; line-height: 1.5; }
+.delete-modal-actions { justify-content: flex-end; }
+.danger-btn { background: #e5484d; color: #fff; }
+.danger-btn:hover { background: #d33b41; opacity: 1; }
+.danger-btn:disabled { opacity: .55; cursor: wait; }
 .btn {
   border: none; cursor: pointer; padding: 9px 18px; border-radius: 8px;
   font-size: 14px; font-weight: 500; background: var(--send-bg); color: var(--send-fg);

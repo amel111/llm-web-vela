@@ -176,6 +176,19 @@ window.TEMPER = {
     </div>
   </div>
 </div>
+
+<!-- Delete conversation modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
+    <h2 id="deleteModalTitle">Delete conversation?</h2>
+    <p class="modal-sub">This will permanently delete <strong id="deleteConvTitle"></strong> and its messages.</p>
+    <div class="btn-row delete-modal-actions">
+      <button class="btn ghost" id="deleteCancel" type="button">Cancel</button>
+      <button class="btn danger-btn" id="deleteConfirm" type="button">Delete</button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 {% endblock %}
