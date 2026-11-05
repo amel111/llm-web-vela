@@ -155,15 +155,15 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; padding: 0 16px; gap: 8px;
 }
 .model-picker { position: relative; }
-.topbar-right { margin-left: auto; display: flex; align-items: center; padding-right: 2px; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; padding-right: 4px; }
 .model-led {
-  width: 10px; height: 10px; border-radius: 50%;
+  width: 26px; height: 4px; border-radius: 2px;
   background: var(--border);
   transition: background .3s ease, box-shadow .3s ease;
 }
 .model-led.loaded {
-  background: #2ea45f;
-  box-shadow: 0 0 6px 1px rgba(46,164,95,.55);
+  background: linear-gradient(90deg, #2ea45f, #34c572);
+  box-shadow: 0 0 6px 1px rgba(46,164,95,.45);
 }
 .model-led.flash { animation: led-flash 1s ease-in-out infinite; }
 @keyframes led-flash {
