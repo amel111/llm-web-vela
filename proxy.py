@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105g")
+ASSET_V = os.environ.get("ASSET_V", "20261105h")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")
@@ -63,9 +63,16 @@ def _init_db():
             prompt_tokens INTEGER DEFAULT 0,
             completion_tokens INTEGER DEFAULT 0,
             created_at REAL NOT NULL,
+            model TEXT,
+            elapsed_s REAL,
             FOREIGN KEY(conversation_id) REFERENCES conversations(id)
         )"""
     )
+    cols = [r[1] for r in con.execute("PRAGMA table_info(messages)").fetchall()]
+    if cols and "model" not in cols:
+        con.execute("ALTER TABLE messages ADD COLUMN model TEXT")
+    if cols and "elapsed_s" not in cols:
+        con.execute("ALTER TABLE messages ADD COLUMN elapsed_s REAL")
     con.commit()
     con.close()
 
@@ -448,6 +455,7 @@ def _stream_chat(cid, history, model, endpoint):
         pt = 0
         ct = 0
         full = ""
+        elapsed_gen = None
         try:
             with httpx.stream("POST", "{}/api/chat".format(_SETTINGS.get("ollama_url", OLLAMA_URL).rstrip("/")),
                               json=payload, timeout=300) as r:
@@ -471,15 +479,23 @@ def _stream_chat(cid, history, model, endpoint):
                                  "choices": [{"index": 0, "delta": {"content": delta}, "finish_reason": None}]}
                         yield "data: {}\n\n".format(json.dumps(chunk))
                     if obj.get("done"):
+                        ed = obj.get("eval_duration")
+                        elapsed_gen = (ed / 1e9) if ed else None
+                        ec = obj.get("eval_count")
+                        if ec:
+                            ct = int(ec or 0)
+                        if not elapsed_gen:
+                            elapsed_gen = time.time()-t0
                         chunk = {"id": "c-{}".format(int(time.time()*1000)), "object": "chat.completion.chunk",
                                  "created": int(time.time()), "model": model,
                                  "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                                 "usage": {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": pt+ct}}
+                                 "usage": {"prompt_tokens": pt, "completion_tokens": ct, "total_tokens": pt+ct,
+                                   "model": model, "elapsed_s": round(elapsed_gen, 3)}}
                         yield "data: {}\n\n".format(json.dumps(chunk))
         except Exception as e:
             yield "data: {}\n\n".format(json.dumps({"error": str(e)}))
         finally:
-            _add_message(cid, "assistant", full, pt, ct)
+            _add_message(cid, "assistant", full, pt, ct, model, elapsed_gen if elapsed_gen else time.time()-t0)
             _record(model, pt, ct, pt+ct, time.time()-t0, endpoint)
             _touch_conversation(cid)
         yield "data: [DONE]\n\n"
@@ -652,20 +668,20 @@ def _del_conversation(cid):
     con.close()
 
 
-def _add_message(cid, role, content, pt=0, ct=0):
+def _add_message(cid, role, content, pt=0, ct=0, model=None, elapsed=None):
     now = time.time()
     con = sqlite3.connect(DB_PATH)
-    con.execute("INSERT INTO messages (conversation_id,role,content,prompt_tokens,completion_tokens,created_at) VALUES (?,?,?,?,?,?)",
-                (cid, role, content, pt, ct, now))
+    con.execute("INSERT INTO messages (conversation_id,role,content,prompt_tokens,completion_tokens,created_at,model,elapsed_s) VALUES (?,?,?,?,?,?,?,?)",
+                (cid, role, content, pt, ct, now, model, elapsed))
     con.commit()
     con.close()
 
 
 def _list_messages(cid):
     con = sqlite3.connect(DB_PATH)
-    rows = con.execute("SELECT id,role,content,prompt_tokens,completion_tokens,created_at FROM messages WHERE conversation_id=? ORDER BY id", (cid,)).fetchall()
+    rows = con.execute("SELECT id,role,content,prompt_tokens,completion_tokens,created_at,model,elapsed_s FROM messages WHERE conversation_id=? ORDER BY id", (cid,)).fetchall()
     con.close()
-    return [{"id": r[0], "role": r[1], "content": r[2], "prompt_tokens": r[3], "completion_tokens": r[4], "created_at": r[5]} for r in rows]
+    return [{"id": r[0], "role": r[1], "content": r[2], "prompt_tokens": r[3], "completion_tokens": r[4], "created_at": r[5], "model": r[6], "elapsed_s": r[7]} for r in rows]
 
 
 def _set_title(cid, title):

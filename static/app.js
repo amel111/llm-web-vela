@@ -496,10 +496,13 @@
     rb.addEventListener("click", function () { regenerate(); });
     acts.appendChild(cb);
     acts.appendChild(rb);
-    if (m && m.completion_tokens) {
+    if (m && (m.model || (m.completion_tokens && m.elapsed_s))) {
       var meta = document.createElement("span");
       meta.className = "meta";
-      meta.textContent = "in=" + m.prompt_tokens + " out=" + m.completion_tokens;
+      var parts = [];
+      if (m.model) parts.push(m.model.replace(/:latest$/, ""));
+      if (m.completion_tokens && m.elapsed_s) parts.push((m.completion_tokens / m.elapsed_s).toFixed(1) + " tok/s");
+      meta.textContent = parts.join(" · ");
       acts.appendChild(meta);
     }
     row.appendChild(acts);
@@ -669,7 +672,9 @@
     if (full) {
       finalize(row, full);
       appendAssistantActions(row, full, lastUsage ? {
-        completion_tokens: lastUsage.completion_tokens, prompt_tokens: lastUsage.prompt_tokens
+        completion_tokens: lastUsage.completion_tokens,
+        elapsed_s: lastUsage.elapsed_s,
+        model: lastUsage.model
       } : null);
     }
     stickToBottom();
