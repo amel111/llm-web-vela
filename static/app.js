@@ -200,6 +200,7 @@
               if (lbl) lbl.textContent = name;
               dd.style.display = "none";
               snack("Model: " + name);
+              pollModelStatus();
             });
           };
         }(list[i]));
@@ -218,6 +219,21 @@
     });
     document.addEventListener("click", function () { modelDropdown.style.display = "none"; });
     modelDropdown.addEventListener("click", function (e) { e.stopPropagation(); });
+  }
+
+  // ---------- model load indicator ----------
+  var modelLed = document.getElementById("modelLed");
+  function pollModelStatus() {
+    fetch("/api/model_status").then(function (r) { return r.json(); }).then(function (d) {
+      if (!modelLed) return;
+      modelLed.classList.toggle("loaded", !!d.loaded);
+      modelLed.classList.toggle("flash", !d.loaded);
+      modelLed.title = d.loaded ? (d.model + " loaded") : (d.model + " not loaded");
+    }).catch(function () {});
+  }
+  if (modelLed) {
+    pollModelStatus();
+    setInterval(pollModelStatus, 3000);
   }
 
   // ---------- markdown pipeline ----------

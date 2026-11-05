@@ -155,6 +155,21 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; padding: 0 16px; gap: 8px;
 }
 .model-picker { position: relative; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; padding-right: 2px; }
+.model-led {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--border);
+  transition: background .3s ease, box-shadow .3s ease;
+}
+.model-led.loaded {
+  background: #2ea45f;
+  box-shadow: 0 0 6px 1px rgba(46,164,95,.55);
+}
+.model-led.flash { animation: led-flash 1s ease-in-out infinite; }
+@keyframes led-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .35; }
+}
 .model-btn {
   display: inline-flex; align-items: center; gap: 6px;
   border: none; background: transparent; cursor: pointer;

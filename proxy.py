@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105h")
+ASSET_V = os.environ.get("ASSET_V", "20261105i")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")
@@ -433,6 +433,27 @@ def api_conv_del(cid):
         return jsonify({"error": "unauth"}), 401
     _del_conversation(cid)
     return jsonify({"ok": True})
+
+
+@app.get("/api/model_status")
+def api_model_status():
+    if not _web_authed():
+        return jsonify({"error": "unauth"}), 401
+    wanted = (_SETTINGS.get("model") or MODEL).strip()
+    base = wanted.split(":")[0]
+    loaded = False
+    names = []
+    try:
+        r = httpx.get(f"{OLLAMA_URL}/api/ps", timeout=5)
+        r.raise_for_status()
+        names = [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:
+        names = []
+    for n in names:
+        if n == wanted or n.split(":")[0] == base:
+            loaded = True
+            break
+    return jsonify({"model": wanted, "loaded": loaded, "running": names})
 
 
 def _chat_options():
