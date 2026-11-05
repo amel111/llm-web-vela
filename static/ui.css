@@ -157,18 +157,27 @@ button { font: inherit; color: inherit; }
 .model-picker { position: relative; }
 .topbar-right { margin-left: auto; display: flex; align-items: center; padding-right: 4px; }
 .model-led {
+  position: relative;
   width: 26px; height: 4px; border-radius: 2px;
   background: var(--border);
-  transition: background .3s ease, box-shadow .3s ease;
+  overflow: hidden;
 }
-.model-led.loaded {
+.model-led::after {
+  content: "";
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 0;
+  border-radius: 2px;
   background: linear-gradient(90deg, #2ea45f, #34c572);
-  box-shadow: 0 0 6px 1px rgba(46,164,95,.45);
 }
-.model-led.flash { animation: led-flash 1s ease-in-out infinite; }
-@keyframes led-flash {
-  0%, 100% { opacity: 1; }
-  50% { opacity: .35; }
+.model-led.loaded::after {
+  box-shadow: 0 0 6px 1px rgba(46,164,95,.45);
+  animation: charge 1.1s ease-out forwards;
+}
+@keyframes charge {
+  0%   { width: 18%; }
+  33%  { width: 50%; }
+  66%  { width: 72%; }
+  100% { width: 100%; }
 }
 .model-btn {
   display: inline-flex; align-items: center; gap: 6px;

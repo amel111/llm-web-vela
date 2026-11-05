@@ -226,8 +226,10 @@
   function pollModelStatus() {
     fetch("/api/model_status").then(function (r) { return r.json(); }).then(function (d) {
       if (!modelLed) return;
-      modelLed.classList.toggle("loaded", !!d.loaded);
-      modelLed.classList.toggle("flash", !d.loaded);
+      if (!!d.loaded !== modelLed.classList.contains("loaded")) {
+        modelLed.classList.remove("loaded");
+        if (d.loaded) { void modelLed.offsetWidth; modelLed.classList.add("loaded"); }
+      }
       modelLed.title = d.loaded ? (d.model + " loaded") : (d.model + " not loaded");
     }).catch(function () {});
   }
