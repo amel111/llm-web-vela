@@ -191,12 +191,21 @@ button { font: inherit; color: inherit; }
   border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 4px;
   max-height: 320px; overflow-y: auto;
 }
-.model-dropdown button {
-  display: block; width: 100%; text-align: left; border: none; background: transparent;
-  padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text);
+.model-dropdown .model-row {
+  display: flex; align-items: center; gap: 2px; border-radius: 6px;
 }
-.model-dropdown button:hover { background: var(--hover); }
-.model-dropdown button.selected { background: var(--hover); }
+.model-dropdown .model-row:hover { background: var(--hover); }
+.model-dropdown button {
+  display: block; border: none; background: transparent; cursor: pointer;
+  padding: 8px 10px; font-size: 14px; color: var(--text);
+}
+.model-dropdown .model-name { flex: 1; text-align: left; border-radius: 6px; }
+.model-dropdown .model-name.selected { background: var(--hover); }
+.model-dropdown .model-unload {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border-radius: 6px; color: var(--text-secondary);
+}
+.model-dropdown .model-unload:hover { background: var(--border); color: var(--text); }
 .topbar-right { margin-left: auto; display: inline-flex; gap: 4px; }
 
 /* ---------- thread ---------- */

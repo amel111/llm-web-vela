@@ -179,16 +179,26 @@
   }
 
   // ---------- model picker ----------
+  var UNLOAD_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><path d="M12 2v10"/></svg>';
+  function loadModel(name) {
+    return fetch("/api/model_load", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: name })
+    });
+  }
   function fillDropdown(dd) {
     return fetch("/api/models").then(function (r) { return r.json(); }).then(function (d) {
       dd.innerHTML = "";
       var list = (d.data || []).map(function (m) { return m.id; });
       if (!list.length) list = [currentModel];
       for (var i = 0; i < list.length; i++) {
+        var row = document.createElement("div");
+        row.className = "model-row";
         var b = document.createElement("button");
         b.type = "button";
+        b.className = "model-name";
         b.textContent = list[i];
-        if (list[i] === currentModel) b.className = "selected";
+        if (list[i] === currentModel) b.classList.add("selected");
         b.addEventListener("click", function (name) {
           return function () {
             currentModel = name;
@@ -199,12 +209,35 @@
               var lbl = document.getElementById("modelName");
               if (lbl) lbl.textContent = name;
               dd.style.display = "none";
-              snack("Model: " + name);
+              snack("Loading (" + name.replace(":latest", "") + ")…");
+              loadModel(name).then(function (r) { return r.json(); }).then(function (res) {
+                snack(res.ok ? "Model: " + name : "Load failed");
+              }).catch(function () { snack("Load failed"); });
               pollModelStatus();
             });
           };
         }(list[i]));
-        dd.appendChild(b);
+        var ub = document.createElement("button");
+        ub.type = "button";
+        ub.className = "model-unload";
+        ub.title = "Unload model";
+        ub.innerHTML = UNLOAD_ICON;
+        ub.addEventListener("click", function (name) {
+          return function () {
+            snack("Unloading " + name + "…");
+            fetch("/api/model_unload", {
+              method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ model: name })
+            }).then(function (r) { return r.json(); }).then(function (res) {
+              if (res.ok) snack("Model unloaded");
+              else snack("Unload failed");
+              pollModelStatus();
+            }).catch(function () { snack("Unload failed"); });
+          };
+        }(list[i]));
+        row.appendChild(b);
+        row.appendChild(ub);
+        dd.appendChild(row);
       }
     }).catch(function () {});
   }

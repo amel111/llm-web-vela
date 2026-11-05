@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105l")
+ASSET_V = os.environ.get("ASSET_V", "20261105n")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")
@@ -454,6 +454,44 @@ def api_model_status():
             loaded = True
             break
     return jsonify({"model": wanted, "loaded": loaded, "running": names})
+
+
+@app.post("/api/model_load")
+def api_model_load():
+    if not _web_authed():
+        return jsonify({"error": "unauth"}), 401
+    model = (request.get_json(silent=True) or {}).get("model") or (_SETTINGS.get("model") or MODEL)
+    want = model.strip()
+    base = want.split(":")[0]
+    try:
+        r = httpx.get(f"{OLLAMA_URL}/api/ps", timeout=5)
+        r.raise_for_status()
+        names = [m.get("name", "") for m in r.json().get("models", [])]
+    except Exception:
+        names = []
+    loaded = any(n == want or n.split(":")[0] == base for n in names)
+    if not loaded:
+        try:
+            r = httpx.post(f"{OLLAMA_URL}/api/generate",
+                           json={"model": want, "prompt": "hi"}, timeout=120)
+            r.raise_for_status()
+        except Exception as e:
+            return jsonify({"error": str(e)}), 502
+    return jsonify({"ok": True, "model": want})
+
+
+@app.post("/api/model_unload")
+def api_model_unload():
+    if not _web_authed():
+        return jsonify({"error": "unauth"}), 401
+    model = (request.get_json(silent=True) or {}).get("model") or (_SETTINGS.get("model") or MODEL)
+    try:
+        r = httpx.post(f"{OLLAMA_URL}/api/generate",
+                       json={"model": model, "prompt": "", "keep_alive": 0}, timeout=30)
+        r.raise_for_status()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
 
 
 def _chat_options():
