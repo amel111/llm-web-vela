@@ -213,10 +213,18 @@ button { font: inherit; color: inherit; }
 }
 .copy-btn:hover { color: var(--code-text); background: rgba(255,255,255,.08); }
 .stream-caret::after {
-  content: "▍"; display: inline-block; animation: blink 1s steps(1) infinite;
-  color: var(--text-secondary); margin-left: 2px;
+  content: "...";
+  display: inline-block;
+  width: 1.1em;
+  text-align: left;
+  color: var(--text-secondary);
+  margin-left: 2px;
+  animation: typing-dots 1.2s steps(3, jump-none) infinite;
 }
-@keyframes blink { 50% { opacity: 0; } }
+@keyframes typing-dots {
+  0% { clip-path: inset(0 100% 0 0); }
+  100% { clip-path: inset(0 0 0 0); }
+}
 
 .msg-actions {
   display: flex; align-items: center; gap: 2px; margin-top: 6px;
