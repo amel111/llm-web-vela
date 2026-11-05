@@ -22,7 +22,7 @@ WEB_PASSWORD = os.environ.get("WEB_PASSWORD", "") or API_KEY
 LOG_FILE = os.environ.get("USAGE_LOG", "usage.log")
 
 # static asset cache-busting version — bump after changing static/ui.css or static/app.js
-ASSET_V = os.environ.get("ASSET_V", "20261105e")
+ASSET_V = os.environ.get("ASSET_V", "20261105f")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "temper-secret-change-me")

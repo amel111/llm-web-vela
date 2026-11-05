@@ -679,7 +679,7 @@
   function setSendState() {
     sendBtn.classList.toggle("stop", streamActive);
     sendBtn.disabled = false;
-    ta.placeholder = streamActive ? "Generating…" : "Message Temper…";
+    ta.placeholder = streamActive ? "Generating…" : "Message…";
   }
 
   function autosize() {
