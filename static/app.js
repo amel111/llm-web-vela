@@ -235,7 +235,7 @@
   }
   if (modelLed) {
     pollModelStatus();
-    setInterval(pollModelStatus, 3000);
+    setInterval(pollModelStatus, 2000);
   }
 
   // ---------- markdown pipeline ----------
@@ -684,6 +684,7 @@
     row.classList.remove("stream-caret");
     streamActive = false;
     setSendState();
+    pollModelStatus();
     var entry = null;
     for (var i = 0; i < rows.length; i++) if (rows[i].el === row) entry = rows[i];
     if (entry) entry.content = full;
