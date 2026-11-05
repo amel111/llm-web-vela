@@ -102,7 +102,7 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; text-decoration: none;
   position: relative; padding: 8px 10px; border-radius: 8px;
   color: var(--text); cursor: pointer; font-size: 14px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .conv-item .conv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .conv-item:hover { background: var(--hover); }
