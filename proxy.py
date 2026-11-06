@@ -598,7 +598,8 @@ def api_chat_send():
     if not cid or not text:
         return jsonify({"error": "missing"}), 400
     cid = int(cid)
-    _add_message(cid, "user", text)
+    if not data.get("skip_add_user"):
+        _add_message(cid, "user", text)
     conv = _get_conversation(cid)
     if not conv.get("title"):
         _set_title(cid, text[:40])
